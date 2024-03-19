@@ -3,6 +3,9 @@ import random
 import matplotlib.pyplot as plt
 import numpy as np
 
+CONST_WINS_FOLDER = "results/wins/"
+
+
 """
 In First-vist MC we're just estimating V given v policy
 So we just need V(s) and Returns(S)
@@ -207,6 +210,16 @@ def plot_learning_curve(wins):
     plt.show()
 
 
+def plot_learning_curve_no_mean(wins):
+   # avg_wins = [sum(wins[:i+1]) / len(wins[:i+1]) for i in range(len(wins))]
+    plt.plot(range(1, len(wins) + 1), wins)
+    plt.xlabel('Episodes')
+    plt.ylabel('Average Win Rate')
+    plt.title('Average Win Rate over Episodes')
+    plt.show()
+
+
+
 
 def calculate_mean_std(wins):
     mean_wins = np.mean(wins)
@@ -214,9 +227,14 @@ def calculate_mean_std(wins):
     print("Average wins: ", mean_wins)
     print("Standard Deviation of wins: ", std_wins)
     
-
-
-
+    
+    
+def save_to_csv_wins(wins, file_name):
+    np.savetxt(CONST_WINS_FOLDER + file_name + ".csv",
+        wins,
+        delimiter =", ",
+        fmt ='% s')
+    
 ########################################################
 ######################## Main ##########################
 ########################################################
@@ -224,7 +242,7 @@ if __name__ == '__main__':
     env = gym.make("Blackjack-v1", sab=True)
     
     algorithm = input("Enter algorithm: ")
-    MAX_EPISODES = 10000
+    MAX_EPISODES = 1000
 
     if (algorithm == 'FV' or algorithm == 'fv'):
         discount_factor = 1.0
@@ -246,6 +264,11 @@ if __name__ == '__main__':
         values = {state : sum(agent.get_returns()[state]) / len(agent.get_returns()[state]) for state in agent.get_returns()}
         plot_learning_curve(agent.wins)
         calculate_mean_std(agent.wins)
+        #plot_learning_curve_no_mean(agent.wins)
+        
+        #save to csv in wins
+        save_to_csv_wins(agent.wins, "MC_FV_ep_" + str(MAX_EPISODES))
+        
 
     if (algorithm == 'ES' or algorithm == 'es'):
         epsilon = 0.1
@@ -263,8 +286,10 @@ if __name__ == '__main__':
         
         plot_learning_curve(agent.wins)
         calculate_mean_std(agent.wins)
+        #plot_learning_curve_no_mean(agent.wins)
         
-        
+        #save to csv in wins
+        save_to_csv_wins(agent.wins, "MC_ES_ep_" + str(MAX_EPISODES))
         
         
     

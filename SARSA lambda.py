@@ -3,6 +3,8 @@ import random
 import matplotlib.pyplot as plt
 import numpy as np
 
+CONST_WINS_FOLDER = "results/wins/"
+
 class SARSA_LAMBDA():
     def __init__(self, alpha, epsilon, Lambda):
         self.alpha = alpha
@@ -76,7 +78,7 @@ class SARSA_LAMBDA():
         best_q_value = float('-inf')
      
         for action in actions:
-            q_value = self.q_values[(hand, dealer, ace, action)]
+            q_value = self.q_values.get((hand, dealer, ace, action), 0)
             if q_value > best_q_value:
                 best_action = action
                 best_q_value = q_value
@@ -96,11 +98,9 @@ class SARSA_LAMBDA():
         dealer_next = state_next[1]
         ace_next = state_next[2]
         
-        q_sa = self.q_values[(hand, dealer, ace, action)]
-        q_sa_next = self.q_values[(hand_next, dealer_next, ace_next, action_next)]
     
         # delta = r + gamma * Q(s', a') - Q(s, a)
-        delta = reward * self.gamma * q_sa_next - q_sa
+        delta = reward * self.gamma * self.q_values[(hand_next, dealer_next, ace_next, action_next)] - self.q_values[(hand, dealer, ace, action)]
         
         return delta
     
@@ -109,11 +109,8 @@ class SARSA_LAMBDA():
         dealer = state[1]
         ace = state[2]
         
-        q_sa = self.q_values[(hand, dealer, ace, action)]
-        e_sa = self.e[(hand, dealer, ace, action)]
-        
         # Q(s, a) = Q(s, a) + alpha * delta * e(s, a)
-        q_sa = q_sa + self.alpha * delta * e_sa
+        q_sa = self.q_values[(hand, dealer, ace, action)] + self.alpha * delta * self.e[(hand, dealer, ace, action)]
         
         return q_sa
     
@@ -123,10 +120,8 @@ class SARSA_LAMBDA():
         dealer = state[1]
         ace = state[2]
         
-        e_sa = self.e[(hand, dealer, ace, action)]
-        
         #e(s, a) = gamma * lambda * e(s, a)
-        e_sa = self.gamma * self.Lambda * e_sa
+        e_sa = self.gamma * self.Lambda * self.e[(hand, dealer, ace, action)]
         
         return e_sa
     
@@ -139,7 +134,7 @@ def plot_learning_curve(wins):
     plt.plot(range(1, len(wins) + 1), avg_wins)
     plt.xlabel('Episodes')
     plt.ylabel('Average Win Rate')
-    plt.title('Average Win Rate over Episodes')
+    plt.title('Average Win Rate over Episodes SARSA Lambda')
     plt.show()
     
     
@@ -148,6 +143,13 @@ def calculate_mean_std(wins):
     std_wins = np.std(wins)
     print("Average wins: ", mean_wins)
     print("Standard Deviation of wins: ", std_wins)
+    
+    
+def save_to_csv_wins(wins, file_name):
+    np.savetxt(CONST_WINS_FOLDER + file_name + ".csv",
+        wins,
+        delimiter =", ",
+        fmt ='% s')       
 
 ##############################################################
 ##############################################################
@@ -165,6 +167,8 @@ def generate_episode(agent):
     # Initalize a
     action = agent.policy(state)
     
+    rewards = []
+    
     while not done:
         
         # Take action a, observe r, and next state s'
@@ -177,23 +181,22 @@ def generate_episode(agent):
         delta = agent.updating_delta(reward, state_next, action_next, state, action)
         
         # e(s, a) = e(s, a) + 1 
-        e_sa = agent.get_e(state, action)
         hand = state[0]
         dealer = state[1]
         ace = state[2]
         
-        agent.e[(hand, dealer, ace, action)] = e_sa + 1
+        agent.e[(hand, dealer, ace, action)] = agent.get_e(state, action) + 1
         
         # forall (s, a) within this episode do
         
         # Q(s, a) = Q(s, a) + alpha * delta * e(s, a)
         agent.q_values[(hand, dealer, ace, action)] = agent.updating_Q(state, action, delta)
         
-            #e(s, a) = gamma * lambda * e(s, a)
+        #e(s, a) = gamma * lambda * e(s, a)
         agent.e[(hand, dealer, ace, action)] = agent.updating_e(state, action)
         
     
-        agent.update_wins(reward)
+        rewards.append(reward)
         
         # s = s'
         state = state_next
@@ -202,6 +205,8 @@ def generate_episode(agent):
         
         # until S is terminal        
         done = terminated or truncated 
+        
+    agent.wins.append(sum(rewards))
     
 ##############################################################
 ##############################################################
@@ -210,9 +215,9 @@ def generate_episode(agent):
 if __name__ == '__main__':
     env = gym.make("Blackjack-v1", sab=True)
     
-    MAX_EPISODES = 10000
+    MAX_EPISODES = 1000
     alpha = 0.05
-    epsilon = 0.1
+    epsilon = 0.05
     Lambda = 0.55
     
     agent = SARSA_LAMBDA(alpha, epsilon, Lambda)
@@ -227,6 +232,9 @@ if __name__ == '__main__':
     print("Finished")
     calculate_mean_std(agent.wins)
     plot_learning_curve(agent.wins)
+    print(str(len(agent.wins)))
+    
+    save_to_csv_wins(agent.wins, "SARSA_LAMBDA_ep_" + str(MAX_EPISODES))
     
     
     

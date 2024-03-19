@@ -3,6 +3,7 @@ import random
 import matplotlib.pyplot as plt
 import numpy as np
 
+CONST_WINS_FOLDER = "results/wins/"
 
 class SARSA():
     def __init__(self, alpha, epsilon):
@@ -90,7 +91,7 @@ def plot_learning_curve(wins):
     plt.plot(range(1, len(wins) + 1), avg_wins)
     plt.xlabel('Episodes')
     plt.ylabel('Average Win Rate')
-    plt.title('Average Win Rate over Episodes')
+    plt.title('Average Win Rate over Episodes SARSA')
     plt.show()
     
     
@@ -99,7 +100,14 @@ def calculate_mean_std(wins):
     std_wins = np.std(wins)
     print("Average wins: ", mean_wins)
     print("Standard Deviation of wins: ", std_wins)
-
+    
+    
+def save_to_csv_wins(wins, file_name):
+    np.savetxt(CONST_WINS_FOLDER + file_name + ".csv",
+        wins,
+        delimiter =", ",
+        fmt ='% s')    
+    
 ########################################################
 ########################################################  
 
@@ -113,6 +121,8 @@ def gen_episode(agent) -> list:
     
     # Choose A from S using policy derived from Q
     action = agent.policy(state)
+    
+    rewards = []
     
     while not done:
         # Take action A, observe R, S'
@@ -128,17 +138,17 @@ def gen_episode(agent) -> list:
         state = state_next
         action = action_next
         
-        agent.update_wins(reward)
+        rewards.append(reward)
         
         # until S is terminal        
         done = terminated or truncated 
     
-
+    agent.wins.append(sum(rewards))
 
 if __name__ == '__main__':
     env = gym.make("Blackjack-v1", sab=True)
     
-    MAX_EPISODES = 10000
+    MAX_EPISODES = 1000
     alpha = 0.05
     epsilon = 0.1
     
@@ -150,6 +160,7 @@ if __name__ == '__main__':
     
     plot_learning_curve(agent.wins)
     calculate_mean_std(agent.wins)
+    save_to_csv_wins(agent.wins, "SARSA_ep_" + str(MAX_EPISODES))
     
     
     
