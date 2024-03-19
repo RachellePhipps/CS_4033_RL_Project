@@ -10,21 +10,25 @@ class Blackjack():
         pass
 
 def play_round():
-    state = env.reset()
-
-    print("state", state)
+    state = env.reset()[0]
     done = False
-    while not done:
-        action = random.choice([0,1])
-        print("action took: ", action)  
-        observation, reward, done, truncated, info = env.step(action)
-        print("step action: ", env.step(action))
-        env.render()
 
-    return reward
+    episode = []
+    episode.append(state)
+
+    while not done:
+        action = 0
+        state, reward, done, truncated, info = env.step(action)
+        episode.append(action)
+        episode.append(reward)
+        episode.append(state)
+
+    return episode  
 
 
 if __name__ == '__main__':
     env = gym.make("Blackjack-v1", sab=True, render_mode="human")
     
-    print("Round 1 reward: ", play_round())
+    for _ in range(100):
+        episode = play_round()
+        print(episode)
