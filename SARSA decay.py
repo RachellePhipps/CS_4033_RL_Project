@@ -81,6 +81,9 @@ class SARSA():
         
         self.q_values[(hand, dealer, ace, action)] = q_sa + self.alpha * (reward + (self.gamma * q_sa_next) - q_sa)
     
+    
+    def decay_epsilon(self, t, decay_rate, n0 = 0.1):
+        self.epsilon = n0 * np.exp((-1)*decay_rate * t)
 
 ########################################################
 #################### Plotting ##########################
@@ -112,9 +115,15 @@ def save_to_csv_wins(wins, file_name):
 ########################################################  
 
 
-def gen_episode(agent) -> list:  
+def gen_episode(agent, t) -> list:  
     
     done = False
+    
+    decay_rate = 0.05
+    n0 = 0.1
+    
+    # decay epsilon
+    agent.epsilon = n0 * np.exp((-1)*decay_rate * t)
     
     # Initialize S
     state = env.reset()[0]
@@ -153,18 +162,18 @@ if __name__ == '__main__':
     epsilon = 0.1
     num_games = 50
     
+    for i in range(num_games):
     
-    for i in range(MAX_EPISODES):
         agent = SARSA(alpha, epsilon)
         
-        for _ in range(MAX_EPISODES):
+        for t in range(1, MAX_EPISODES + 1):
             
-            gen_episode(agent)
+            gen_episode(agent, t)
         
         plot_learning_curve(agent.wins)
         calculate_mean_std(agent.wins)
-        save_to_csv_wins(agent.wins, "SARSA_ep_" + str(MAX_EPISODES) + "_" + str(i))
-        
+        save_to_csv_wins(agent.wins, "SARSA_DECAY_ep_" + str(MAX_EPISODES) + "_" + str(i))
+    
     
     
     

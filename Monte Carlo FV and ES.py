@@ -242,54 +242,58 @@ if __name__ == '__main__':
     env = gym.make("Blackjack-v1", sab=True)
     
     algorithm = input("Enter algorithm: ")
-    MAX_EPISODES = 1000
+    MAX_EPISODES = 10000
+    num_games = 50
 
     if (algorithm == 'FV' or algorithm == 'fv'):
-        discount_factor = 1.0
-    
-        agent = FV_MC()
         
-        wins = []
+        for i in range(num_games):
+            discount_factor = 1.0
         
-        for _ in range(MAX_EPISODES):
+            agent = FV_MC()
             
-            episode = gen_episode(agent)
-    
-            # Apply First Visit to V(S) and Returns(S) based on episode
-            agent.update(episode)
+            wins = []
             
-            reward = episode[2]
-            agent.wins.append(reward)
-    
-        values = {state : sum(agent.get_returns()[state]) / len(agent.get_returns()[state]) for state in agent.get_returns()}
-        plot_learning_curve(agent.wins)
-        calculate_mean_std(agent.wins)
-        #plot_learning_curve_no_mean(agent.wins)
+            for _ in range(MAX_EPISODES):
+                
+                episode = gen_episode(agent)
         
-        #save to csv in wins
-        save_to_csv_wins(agent.wins, "MC_FV_ep_" + str(MAX_EPISODES))
+                # Apply First Visit to V(S) and Returns(S) based on episode
+                agent.update(episode)
+                
+                reward = episode[2]
+                agent.wins.append(reward)
+        
+            values = {state : sum(agent.get_returns()[state]) / len(agent.get_returns()[state]) for state in agent.get_returns()}
+            plot_learning_curve(agent.wins)
+            calculate_mean_std(agent.wins)
+            #plot_learning_curve_no_mean(agent.wins)
+            
+            #save to csv in wins
+            save_to_csv_wins(agent.wins, "MC_FV_ep_" + str(MAX_EPISODES) + "_" + str(i))
         
 
     if (algorithm == 'ES' or algorithm == 'es'):
-        epsilon = 0.1
-        
-        agent = Monte_Carlo_ES(epsilon)
-        
-        for _ in range(MAX_EPISODES):
+        for i in range(num_games):
+            epsilon = 0.1
             
-            episode = gen_episode(agent)
-            agent.update(episode)
+            agent = Monte_Carlo_ES(epsilon)
             
-            reward = episode[2]
+            for _ in range(MAX_EPISODES):
+                
+                episode = gen_episode(agent)
+                agent.update(episode)
+                
+                reward = episode[2]
+                
+                agent.wins.append(reward)
             
-            agent.wins.append(reward)
-        
-        plot_learning_curve(agent.wins)
-        calculate_mean_std(agent.wins)
-        #plot_learning_curve_no_mean(agent.wins)
-        
-        #save to csv in wins
-        save_to_csv_wins(agent.wins, "MC_ES_ep_" + str(MAX_EPISODES))
+            plot_learning_curve(agent.wins)
+            calculate_mean_std(agent.wins)
+            #plot_learning_curve_no_mean(agent.wins)
+            
+            #save to csv in wins
+            save_to_csv_wins(agent.wins, "MC_ES_ep_" + str(MAX_EPISODES) + "_" + str(i))
         
         
     
