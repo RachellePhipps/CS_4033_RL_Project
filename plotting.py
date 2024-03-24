@@ -8,9 +8,9 @@ import statistics as st
 
 CONST_WINS_FOLDER = 'results/wins/'
 
-num_games = 50
+num_games = 500
 
-num_episodes = 10000
+num_episodes = 1000
 number_eps = x = np.arange(1, num_episodes + 1)
 
 csv = ".csv"

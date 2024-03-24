@@ -36,8 +36,10 @@ class SARSA():
         
         
     def make_bet(self):    
-        # for now, always bet 1/4 of current money
-        self.current_bet = (.125) * self.money
+        # for now, always bet 1/8 of current money
+        self.current_bet = (.05) * self.money
+        
+
 
     def bet_returns(self, bet, reward):     
         if (reward == -1):
@@ -73,7 +75,7 @@ class SARSA():
         bet = 0
         
         # Double Down
-        if ((hand == 10 or hand == 11) and (dealer < 11)):
+        if ((hand <= 11) and (dealer < 11)):
             bet = 1
             # automatically hit
             return 1, bet
@@ -140,6 +142,15 @@ def plot_learning_curve(wins):
     plt.title('Average Win Rate over Episodes SARSA')
     plt.show()
     
+
+def plot_money(total_earnings, num_games, starting_money):
+    plt.plot(list(range(1, num_games + 1)), total_earnings) 
+    plt.plot(list(range(1, num_games + 1)), [starting_money] * num_games, '-.')
+    plt.xlabel('Number of Games')
+    plt.ylabel('money return')
+    plt.title('Total earnings')
+    plt.show()
+
     
 def calculate_mean_std(wins):
     mean_wins = np.mean(wins)
@@ -154,7 +165,17 @@ def save_to_csv_wins(wins, file_name):
         delimiter =", ",
         fmt ='% s')    
 
- 
+def count_percentage_wins(total_earnings, num_games):
+    
+    num_win = 0
+    
+    for i in total_earnings:
+        if i > 100:
+            num_win +=1
+            
+    return (num_win / num_games) * 10 ** 2, num_win 
+
+
 ########################################################
 ########################################################  
 
@@ -219,23 +240,31 @@ def gen_episode(agent, t) -> list:
 if __name__ == '__main__':
     env = gym.make("Blackjack-v1", sab=True)
     
-    MAX_EPISODES = 100
+    total_earnings = []
+    
+    MAX_EPISODES = 1000
     alpha = 0.05
     epsilon = 0.1
-    num_games = 1
+    num_games = 500
+    starting_money = 100
     
     for i in range(num_games):
     
-        agent = SARSA(alpha, epsilon, 100)
+        agent = SARSA(alpha, epsilon, starting_money)
         
         for t in range(1, MAX_EPISODES + 1):
             
             gen_episode(agent, t)
         
-        plot_learning_curve(agent.wins)
-        calculate_mean_std(agent.wins)
-        save_to_csv_wins(agent.wins, "SARSA_DECAY_ep_" + str(MAX_EPISODES) + "_" + str(i))
+        total_earnings.append(agent.money)
+        
+    plot_money(total_earnings, num_games, starting_money)
     
-    
+    percent_wins = count_percentage_wins(total_earnings, num_games)
+    wins = percent_wins[0]
+    num_persons = percent_wins[1]
+
+    print(wins)
+    print(num_persons)
     
     
