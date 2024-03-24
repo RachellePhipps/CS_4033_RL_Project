@@ -7,21 +7,29 @@ from mpl_toolkits.mplot3d import Axes3D
 STARTING_VALUES = 0.5
 FIRST_EPSILON_DECAY = 1000
 CHUNK_SIZE = 10
+EPSILON = 0.1
+LEARNING_RATE = 1
+LAMBDA = 0.6
 
-class Blackjack_Agent():
-    def __init__(self, epsilon, time_value):
+class Blackjack_Agent_Lambda():
+    def __init__(self, epsilon, time_value, trace_decay):
         self.epsilon = epsilon
         self.time_value = time_value #should be 1 for blackjack, because it is episodic
         self.episode_count = 0
+        self.trace_decay = trace_decay
         
         self.reward_record = []
         self.chunked_record = []
         self.current_chunk = 0
 
+        # this makes it not-generic
+        # 3-d array - [our_hand][dealer_hand][usable_ace]
+
 
         # 4-d array - [our_hand][dealer_hand][usable_ace][stick, hit]
         self.state_action_values = generate_state_action_arrays(STARTING_VALUES)
         self.state_action_times_visited = generate_state_action_arrays(0)
+        self.reset_eligibility_traces()
         
         self.state = (0,0,0)
 
@@ -45,19 +53,38 @@ class Blackjack_Agent():
                                       self.state_values[previous_state[0]][previous_state[1]][previous_state[2]])
         '''
 
+    def set_eligibility_trace(self, state, action, new_value):
+        self.eligibility_traces[state[0]][state[1]][state[2]][action] = new_value
+    
+    def get_eligibility_trace(self, state, action):
+        return self.eligibility_traces[state[0]][state[1]][state[2]][action]
+    
+    def reset_eligibility_traces(self):
+        self.eligibility_traces = generate_state_action_arrays(0)
 
     def update_state_action(self, previous_state, action_taken, reward):
-        self.state_action_times_visited[previous_state[0]][previous_state[1]][previous_state[2]][action_taken] += 1
         #For adjusting alpha
+        self.state_action_times_visited[previous_state[0]][previous_state[1]][previous_state[2]][action_taken] += 1
+        learning_rate = 1 / self.state_action_times_visited[previous_state[0]][previous_state[1]][previous_state[2]][action_taken]
+        # Finding delta
+        error = reward + self.time_value*(max(self.get_state_action_values(self.state, 0), self.get_state_action_values(self.state, 1)))-self.get_state_action_values(previous_state, action_taken)
+        # Non-accumulating eligibility traces, so we set eligibility traces to 1 when we come to them.
+        self.set_eligibility_trace(previous_state, action_taken, new_value=1) 
+        
+       
+        #Loop through all states
 
-        # Q(Last state, action taken) = Q(Last state, action taken) + (1/times_visited)(Measured_reward+gamma(Best state-action value in the next state)-Q(last_state, action_taken))
+        for our_hand in range(len(self.state_action_values)):
+            for dealer_hand in range(len(self.state_action_values[our_hand])):
+                for usable_ace in range(len(self.state_action_values[our_hand][dealer_hand])):
+                    for action in range(len(self.state_action_values[our_hand][dealer_hand][usable_ace])):
+                        # For each state-action, update state-action values and eligibility traces
+                        self.state_action_values[our_hand][dealer_hand][usable_ace][action] = self.state_action_values[our_hand][dealer_hand][usable_ace][action] + \
+                            error*(learning_rate)*self.eligibility_traces[our_hand][dealer_hand][usable_ace][action]
+                        
+                        self.eligibility_traces[our_hand][dealer_hand][usable_ace][action] = self.eligibility_traces[our_hand][dealer_hand][usable_ace][action]*self.trace_decay*self.time_value
 
-        self.state_action_values[previous_state[0]][previous_state[1]][previous_state[2]][action_taken] = \
-            self.get_state_action_values(previous_state, action_taken) + \
-                (1 / self.state_action_times_visited[previous_state[0]][previous_state[1]][previous_state[2]][action_taken]) * \
-                    (reward + self.time_value * (max(self.get_state_action_values(self.state, 0), self.get_state_action_values(self.state, 1))) - \
-                                      self.get_state_action_values(previous_state, action_taken))
-        #print(previous - self.get_state_action_values(previous_state, action))
+       #print(previous - self.get_state_action_values(previous_state, action))
 
     def update_policy(self, previous_state, action, reward):
         #self.policy[self.state]
@@ -103,6 +130,7 @@ class Blackjack_Agent():
         self.env.close()
 
 def run_episode(agent):
+    agent.reset_eligibility_traces()
     agent.state = agent.env.reset()[0]
     agent.episode_count += 1
     #agent.decay_epsilon()
@@ -116,6 +144,7 @@ def run_episode(agent):
         action = agent.pick_action()
 
         state_n_1, reward_n, done, truncated, info = agent.env.step(action)
+        
         agent.update_state(state_n_1)
 
         agent.update_policy(previous_state, action, reward_n)
@@ -142,18 +171,12 @@ def run_learning_loop(agent, num_episodes):
 def plot_best_action(state_action, usable_ace):
     x_points = []
     y_points = []
-    color_list = []
     for x in range(len(state_action)):
         for y in range(len(state_action[x])):
                 #print(state_action[x][y][usable_ace][1], state_action[x][y][usable_ace][0])
                 if state_action[x][y][usable_ace][1] > state_action[x][y][usable_ace][0]:
                     x_points.append(x)
                     y_points.append(y)
-                    color_list.append('blue')
-                elif state_action[x][y][usable_ace][1] < state_action[x][y][usable_ace][0]:
-                    x_points.append(x)
-                    y_points.append(y)
-                    color_list.append('red')
 
     plt.xlabel("Player's Hand")
     plt.ylabel("Dealer's Hand")
@@ -163,7 +186,7 @@ def plot_best_action(state_action, usable_ace):
         plt.title("Best Actions Without Usable Ace")
     
 
-    plt.scatter(x_points, y_points, s=30, c=color_list)
+    plt.scatter(x_points, y_points, s=30)
     plt.show()
 
 
@@ -224,12 +247,14 @@ def generate_state_action_arrays(value):
     return array
 
 
+
         
 
 
 
 if __name__ == '__main__':
-    MyAgent = Blackjack_Agent(0.1, 1)
+    MyAgent = Blackjack_Agent_Lambda(EPSILON, LEARNING_RATE, LAMBDA)
     MyAgent.generate_env()
 
-    run_learning_loop(MyAgent, 50000)
+    
+    run_learning_loop(MyAgent, 10000)
