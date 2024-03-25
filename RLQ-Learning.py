@@ -7,17 +7,20 @@ from mpl_toolkits.mplot3d import Axes3D
 STARTING_VALUES = 0.5
 FIRST_EPSILON_DECAY = 1000
 CHUNK_SIZE = 10
+CONST_WINS_FOLDER = ""
 
 class Blackjack_Agent():
     def __init__(self, epsilon, time_value):
         self.epsilon = epsilon
         self.time_value = time_value #should be 1 for blackjack, because it is episodic
         self.episode_count = 0
-        
         self.reward_record = []
-        self.chunked_record = []
-        self.current_chunk = 0
 
+        self.average_reward = [0]
+        self.total_wins = 0
+        self.win_rate = []
+        self.win_rate_after_1000 = []
+        self.wins_after_1000 = 0
 
         # 4-d array - [our_hand][dealer_hand][usable_ace][stick, hit]
         self.state_action_values = generate_state_action_arrays(STARTING_VALUES)
@@ -92,12 +95,15 @@ class Blackjack_Agent():
         # Adds the reward for an episode measured to our records
 
         self.reward_record.append(episode)
-        self.current_chunk += episode
-        if self.episode_count % CHUNK_SIZE == 0:
-            self.chunked_record.append(self.current_chunk)
-            self.current_chunk = 0
-        else:
-            self.current_chunk += episode
+        self.average_reward.append((self.average_reward[self.episode_count-1]*((self.episode_count-1)/self.episode_count))+episode/self.episode_count)
+        if episode == 1:
+            self.total_wins += 1
+            if self.episode_count > 1000:
+                self.wins_after_1000 += 1
+        
+        self.win_rate.append(self.total_wins/self.episode_count)
+        if (self.episode_count > 1000):
+            self.win_rate_after_1000.append(self.wins_after_1000/(self.episode_count-1000))
 
     def close_env(self):
         self.env.close()
@@ -105,7 +111,7 @@ class Blackjack_Agent():
 def run_episode(agent):
     agent.state = agent.env.reset()[0]
     agent.episode_count += 1
-    #agent.decay_epsilon()
+    agent.decay_epsilon()
     episode_reward = 0 
     done = False
     step = 0
@@ -134,9 +140,11 @@ def run_learning_loop(agent, num_episodes):
 
     plot_best_action(agent.state_action_values, 0)
     plot_best_action(agent.state_action_values, 1)
+    plot_win_rate(agent.win_rate)
+    plot_win_rate_after_1000(agent.win_rate_after_1000)
     #plot_values(agent.state_values, 0)
     #plot_values(agent.state_values, 1)
-    plot_reward(agent.get_reward_record())
+    #plot_reward(agent.get_reward_record())
 
 
 def plot_best_action(state_action, usable_ace):
@@ -210,6 +218,29 @@ def plot_reward(rewards):
 
     plt.show()
 
+def plot_win_rate(win_rate):
+    print(win_rate[-1])
+
+    x = range(len(win_rate))
+
+    plt.xlabel("Experiment Number")
+    plt.ylabel("Win Rate")
+    plt.title("Average Win Rate Over Time Q-Learning")
+    plt.plot(x, win_rate)
+    plt.show()
+
+def plot_win_rate_after_1000(win_rate):
+    print("Win Rate after 1000:", win_rate[-1])
+
+    x = range(len(win_rate))
+
+    plt.xlabel("Experiment Number")
+    plt.ylabel("Win Rate")
+    plt.title("Average Win Rate (After Episode 1000) Over Time Q-Learning")
+    plt.plot(x, win_rate)
+    plt.show()
+
+
 def generate_state_action_arrays(value):
     array = []
     for our_hand in range(32):
@@ -223,6 +254,13 @@ def generate_state_action_arrays(value):
     
     return array
 
+def save_to_csv_wins(wins, file_name):
+    #Function stolen 100% from Rachelle
+    np.savetxt(CONST_WINS_FOLDER + file_name + ".csv",
+        wins,
+        delimiter =", ",
+        fmt ='% s')    
+
 
         
 
@@ -232,4 +270,5 @@ if __name__ == '__main__':
     MyAgent = Blackjack_Agent(0.1, 1)
     MyAgent.generate_env()
 
-    run_learning_loop(MyAgent, 50000)
+    run_learning_loop(MyAgent, 10000)
+    #save_to_csv_wins(MyAgent.win_rate, "RLQLearningTD0_Wins")
